@@ -1,0 +1,52 @@
+# FastAPI Core
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+pydantic-settings
+
+# Existing AI/ML Dependencies
+langchain
+langchain-core
+langchain-openai
+langchain-community
+langgraph
+openai
+mistralai>=1.0.0
+groq
+
+# File Processing
+pdf2image
+PyMuPDF
+fpdf2
+paddleocr
+opencv-python
+pillow
+
+# Cloud Services
+cloudinary
+pandas
+openpyxl
+
+# Security & Validation
+python-jose[cryptography]
+passlib[bcrypt]
+python-dotenv
+
+# Database (if needed)
+sqlalchemy
+alembic
+
+# Development & Testing
+pytest
+pytest-asyncio
+httpx
+
+# Additional utilities
+aiofiles
+jinja2
+
+# Coral Protocol Integration
+# Note: langchain-mcp-adapters requires Python 3.10+
+# For Python 3.9, use alternative MCP implementation
+mcp>=0.1.0

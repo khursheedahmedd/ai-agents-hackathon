@@ -1,0 +1,14 @@
+# Coral Protocol Agent Registry for Smart Grade AI FastAPI
+# This file defines all Coral-compatible agents for the grading system
+
+[[local-agent]]
+path = "agents/coral-ocr-agent"
+
+[[local-agent]]
+path = "agents/coral-grading-agent"
+
+[[local-agent]]
+path = "agents/coral-feedback-agent"
+
+[[local-agent]]
+path = "agents/coral-document-agent"

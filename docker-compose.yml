@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  # Node.js Backend
+  node-backend:
+    build: ./NodeJsBackend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - COSMOS_DB_CONNECTION_STRING=${COSMOS_DB_CONNECTION_STRING}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+      - CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
+      - FASTAPI_SERVER_URL=http://fastapi-backend:8000
+    depends_on:
+      - fastapi-backend
+    volumes:
+      - ./NodeJsBackend/temp:/app/temp
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # FastAPI Backend
+  fastapi-backend:
+    build: ./fastapi
+    ports:
+      - "8000:8000"
+    environment:
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
+      - AZURE_OPENAI_DEPLOYMENT_NAME=${AZURE_OPENAI_DEPLOYMENT_NAME}
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+      - NODE_SERVER_URL=http://node-backend:3000
+      - DEBUG=False
+    volumes:
+      - ./fastapi/static:/app/static
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend (if needed for development)
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_NODE_SERVER_URL=http://localhost:3000
+      - VITE_FASTAPI_SERVER_URL=http://localhost:8000
+    depends_on:
+      - node-backend
+      - fastapi-backend
+    restart: unless-stopped
+
+networks:
+  default:
+    driver: bridge

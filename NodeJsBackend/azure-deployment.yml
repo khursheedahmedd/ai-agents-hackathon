@@ -1,0 +1,45 @@
+# Azure Cloud Service deployment configuration for Node.js Backend
+# This file defines the deployment structure for the Node.js backend service
+
+# Service Definition
+ServiceDefinition:
+  name: SmartGradeNodeJS
+  label: SmartGradeNodeJS
+  description: Smart Grade AI Node.js Backend Service
+
+  # Web Role for Node.js Backend
+  WebRole:
+    name: NodeJSBackend
+    vmsize: Standard_D2s_v3
+    instances: 2
+    endpoints:
+      - name: HttpIn
+        protocol: http
+        port: 80
+        localPort: 3000
+    configurationSettings:
+      - name: NODE_ENV
+        value: production
+      - name: PORT
+        value: 3000
+    certificates:
+      - name: SSL
+        storeLocation: LocalMachine
+        storeName: My
+        permissionLevel: restricted
+
+# Service Configuration
+ServiceConfiguration:
+  name: SmartGradeNodeJS
+  label: SmartGradeNodeJS
+  role:
+    - name: NodeJSBackend
+      configurationSettings:
+        - name: MONGODB_URI
+          value: "YOUR_MONGODB_CONNECTION_STRING"
+        - name: CLERK_SECRET_KEY
+          value: "YOUR_CLERK_SECRET_KEY"
+        - name: CLOUDINARY_URL
+          value: "YOUR_CLOUDINARY_URL"
+        - name: JWT_SECRET
+          value: "YOUR_JWT_SECRET"

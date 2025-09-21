@@ -1,0 +1,44 @@
+[agent]
+name = "feedback-agent"
+version = "1.0.0"
+description = "Feedback generation agent for comprehensive student feedback using Azure OpenAI"
+
+[options.MODEL_API_KEY]
+type = "string"
+description = "Azure OpenAI API key for the model provider"
+
+[options.MODEL_NAME]
+type = "string"
+description = "What model to use (e.g 'gpt-4')"
+default = "gpt-4"
+
+[options.MODEL_PROVIDER]
+type = "string"
+description = "What model provider to use"
+default = "openai"
+
+[options.AZURE_OPENAI_ENDPOINT]
+type = "string"
+description = "Azure OpenAI endpoint URL"
+
+[options.AZURE_OPENAI_DEPLOYMENT_NAME]
+type = "string"
+description = "Azure OpenAI deployment name"
+
+[options.MODEL_TEMPERATURE]
+type = "string"
+description = "Model temperature"
+default = "0.3"
+
+[options.MODEL_MAX_TOKENS]
+type = "string"
+description = "Max tokens to use"
+default = "8000"
+
+[options.TIMEOUT_MS]
+type = "string"
+description = "Connection/tool timeouts in ms"
+default = "30000"
+
+[runtimes.executable]
+command = ["python", "main.py"]

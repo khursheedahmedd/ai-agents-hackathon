@@ -1,0 +1,6 @@
+/Users/macuser/Desktop/smart-grade-ai-fastapi/fastapi/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+2025-09-20 16:12:36,056 - __main__ - INFO - Starting Coral OCR Agent...
+2025-09-20 16:12:39,147 - __main__ - INFO - Coral OCR Agent initialized successfully
+2025-09-20 16:12:39,229 - __main__ - INFO - Coral OCR Agent initialized successfully
+2025-09-20 16:12:39,229 - __main__ - INFO - Agent is ready to process documents via FastAPI endpoints

@@ -1,0 +1,1222 @@
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
+import CreateClass from "./AddClass";
+import { useUser } from "@clerk/clerk-react";
+import { useNavigate } from "react-router-dom";
+import EnrollStudent from "./EnrollStudent";
+import AddAssessmentForm from "./AddAssessmentForm";
+import {
+  FiChevronDown,
+  FiTrash2,
+  FiUsers,
+  FiFilePlus,
+  FiBookOpen,
+  FiDownload,
+  FiEye,
+  FiX,
+} from "react-icons/fi";
+import { toast, ToastContainer } from "react-toastify"; // Import Toastify
+import "react-toastify/dist/ReactToastify.css";
+
+const TeacherDashboard = () => {
+  const [teacher, setTeacher] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showAddClassForm, setShowAddClassForm] = useState(false);
+  const [selectedClass, setSelectedClass] = useState(null);
+  const { isSignedIn } = useUser();
+  const navigate = useNavigate();
+  const [showEnrollForm, setShowEnrollForm] = useState(false);
+  const [showAddAssessmentForm, setShowAddAssessmentForm] = useState(false); // State to toggle Add Assessment form
+  const [assessments, setAssessments] = useState([]);
+  const { user } = useUser();
+  const [loadingExcel, setLoadingExcel] = useState(false); // Loading state for Excel generation
+  const [appeals, setAppeals] = useState([]);
+  const [selectedAppeal, setSelectedAppeal] = useState(null); // State for the selected appeal
+  const [showAppealModal, setShowAppealModal] = useState(false); // State for showing the modal
+  const [loadingRecheck, setLoadingRecheck] = useState(false); // Loading state for recheck
+
+  const teacherEmail = user?.emailAddresses?.[0]?.emailAddress;
+  const teacherName = user?.fullName;
+
+  const handleRecheck = async (appeal) => {
+    if (!appeal || !appeal.assessment || !appeal.assessment._id) {
+      toast.error("Invalid appeal data for recheck");
+      return;
+    }
+
+    setLoadingRecheck(true); // Start loading
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_NODE_SERVER_URL}/api/appeals/recheck`,
+        {
+          studentEmail: appeal.studentEmail,
+          keyFile: appeal.keyFile,
+          assessmentId: appeal.assessment._id,
+          appealId: appeal._id,
+        }
+      );
+
+      if (response.status === 200) {
+        toast.success("Recheck completed successfully!");
+        setShowAppealModal(false);
+        fetchAppeals(); // Refresh appeals list
+      } else {
+        toast.error("Failed to recheck. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error during recheck:", error);
+      toast.error("An error occurred during recheck.");
+    } finally {
+      setLoadingRecheck(false); // Stop loading
+    }
+  };
+
+  const fetchAppeals = async () => {
+    try {
+      const response = await axios.get(
+        `${import.meta.env.VITE_NODE_SERVER_URL}/api/appeals`
+      );
+      setAppeals(response.data.appeals || []);
+    } catch (error) {
+      console.error("Error fetching appeals:", error);
+      setAppeals([]);
+    }
+  };
+
+  const handleGenerateExcel = async (folderId) => {
+    if (!folderId) {
+      toast.error("Invalid folder ID");
+      return;
+    }
+
+    setLoadingExcel(true); // Show loading state
+    try {
+      // Send the folder ID to the Node.js backend
+      const response = await axios.post(
+        `${import.meta.env.VITE_NODE_SERVER_URL}/api/teachers/generate-excel`,
+        { folderId }
+      );
+
+      const { excelUrl } = response.data;
+
+      // Trigger download of the Excel file
+      const link = document.createElement("a");
+      link.href = excelUrl;
+      link.download = "Assessment_Results.xlsx";
+      link.click();
+
+      toast.success("Result Excel sheet downloaded successfully!");
+    } catch (error) {
+      console.error("Error generating Excel sheet:", error);
+      toast.error("Failed to generate Excel sheet. Please try again.");
+    } finally {
+      setLoadingExcel(false); // Hide loading state
+    }
+  };
+
+  const getCloudinaryUrl = (fileUrl) => {
+    if (!fileUrl) return ""; // Return empty string if fileUrl is null or undefined
+    if (fileUrl.endsWith(".pdf")) {
+      // Append 'raw' and 'fl_attachment' transformations for PDFs
+      return fileUrl.replace("/upload/", "/upload/");
+    }
+    return fileUrl; // Return the original URL for other file types
+  };
+
+  const fetchAssessments = async (classId) => {
+    if (!classId) return;
+
+    try {
+      const response = await axios.get(
+        `${import.meta.env.VITE_NODE_SERVER_URL}/api/classes/${classId}/folders`
+      );
+      setAssessments(response.data.folders || []);
+    } catch (error) {
+      console.error("Error fetching assessments:", error);
+      setAssessments([]);
+    }
+  };
+
+  const handleDeleteAssessment = async (folderId) => {
+    if (!folderId) {
+      toast.error("Invalid folder ID");
+      return;
+    }
+
+    try {
+      await axios.delete(
+        `${
+          import.meta.env.VITE_NODE_SERVER_URL
+        }/api/folders/delete-folder/${folderId}`
+      );
+      toast.success("Assessment deleted successfully!");
+      setAssessments(assessments.filter((folder) => folder._id !== folderId));
+    } catch (err) {
+      console.error("Error deleting assessment:", err);
+      toast.error("Failed to delete assessment.");
+    }
+  };
+
+  const fetchTeacherDetails = async () => {
+    if (!teacherEmail) {
+      setError("Teacher email not available");
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Replace with dynamic email if needed
+      const response = await axios.get(
+        `${import.meta.env.VITE_NODE_SERVER_URL}/api/teachers/details`,
+        {
+          params: { teacherEmail },
+        }
+      );
+      setTeacher(response.data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (teacherEmail) {
+      fetchTeacherDetails();
+      fetchAppeals();
+    }
+  }, [teacherEmail]);
+
+  const handleClassClick = (cls) => {
+    if (!cls || !cls._id) return;
+
+    if (selectedClass?._id === cls._id) {
+      // If the clicked class is already selected, close it
+      setSelectedClass(null);
+    } else {
+      // Otherwise, set the clicked class as the selected class
+      setSelectedClass(cls);
+      setShowAddAssessmentForm(false); // Reset Add Assessment form visibility when switching classes
+      fetchAssessments(cls._id); // Fetch assessments for the selected class
+    }
+  };
+
+  const handleViewAppeal = (appeal) => {
+    if (!appeal) return;
+
+    setSelectedAppeal(appeal); // Set the selected appeal
+    setShowAppealModal(true); // Show the modal
+  };
+
+  if (loading)
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-emerald-50">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          className="h-12 w-12 border-4 border-emerald-500 border-t-transparent rounded-full"
+        />
+      </div>
+    );
+
+  if (error)
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-emerald-50">
+        <div className="bg-red-100 p-6 rounded-xl max-w-md text-center">
+          <h2 className="text-red-600 font-semibold text-xl mb-2">
+            Error Loading Dashboard
+          </h2>
+          <p className="text-red-500">{error}</p>
+        </div>
+      </div>
+    );
+
+  if (!teacher || !teacher.classes) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-emerald-50">
+        <div className="bg-yellow-100 p-6 rounded-xl max-w-md text-center">
+          <h2 className="text-yellow-600 font-semibold text-xl mb-2">
+            No Teacher Data
+          </h2>
+          <p className="text-yellow-500">Teacher information not available</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Calculate dashboard statistics
+  const totalStudents = teacher.classes?.reduce((sum, cls) => sum + (cls.students?.length || 0), 0) || 0;
+  const totalAssessments = assessments.length;
+  const pendingAppeals = appeals.filter(appeal => !appeal.resolved).length;
+  const recentSubmissions = teacher.classes?.reduce((sum, cls) => {
+    return sum + (cls.submissions?.filter(sub => {
+      const subDate = new Date(sub.submittedAt);
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      return subDate > weekAgo;
+    }).length || 0);
+  }, 0) || 0;
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-50 p-6 pt-[8rem] pb-12">
+      <div className="max-w-7xl mx-auto">
+        {/* Loading Popup for Recheck */}
+        {loadingRecheck && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-lg text-center">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                className="h-12 w-12 border-4 border-emerald-500 border-t-transparent rounded-full mx-auto mb-4"
+              />
+              <p className="text-emerald-800 font-semibold">
+                Rechecking in progress...
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Toast Container */}
+        <ToastContainer
+          position="top-right"
+          autoClose={5000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+        />
+
+        {/* Enhanced Header Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          {/* Welcome Card */}
+          <div className="bg-white rounded-3xl shadow-xl p-8 mb-6 border border-emerald-100">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-center space-x-4 mb-4 lg:mb-0">
+                <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
+                  <span className="text-2xl font-bold text-white">
+                    {teacherName?.charAt(0) || "T"}
+                  </span>
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900 mb-1">
+                    Welcome back, {teacherName || "Teacher"}!
+                  </h1>
+                  <p className="text-gray-600 text-lg">
+                    Here's what's happening in your classes today
+                  </p>
+                </div>
+              </div>
+              <div className="flex space-x-3">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowAddClassForm(!showAddClassForm)}
+                  className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-6 py-3 rounded-xl font-semibold flex items-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200"
+                >
+                  <FiFilePlus className="text-lg" />
+                  {showAddClassForm ? "Close Form" : "Create Class"}
+                </motion.button>
+              </div>
+            </div>
+          </div>
+
+          {/* Stats Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="bg-white rounded-2xl p-6 shadow-lg border border-emerald-100 hover:shadow-xl transition-all duration-200"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">Total Classes</p>
+                  <p className="text-3xl font-bold text-emerald-600">{teacher.classes?.length || 0}</p>
+                </div>
+                <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
+                  <FiBookOpen className="text-2xl text-emerald-600" />
+                </div>
+              </div>
+              <div className="mt-4 flex items-center text-sm text-gray-500">
+                <span className="text-emerald-500">↗</span>
+                <span className="ml-1">Active this semester</span>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="bg-white rounded-2xl p-6 shadow-lg border border-blue-100 hover:shadow-xl transition-all duration-200"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">Total Students</p>
+                  <p className="text-3xl font-bold text-blue-600">{totalStudents}</p>
+                </div>
+                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                  <FiUsers className="text-2xl text-blue-600" />
+                </div>
+              </div>
+              <div className="mt-4 flex items-center text-sm text-gray-500">
+                <span className="text-blue-500">↗</span>
+                <span className="ml-1">Across all classes</span>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="bg-white rounded-2xl p-6 shadow-lg border border-amber-100 hover:shadow-xl transition-all duration-200"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">Active Assessments</p>
+                  <p className="text-3xl font-bold text-amber-600">{totalAssessments}</p>
+                </div>
+                <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
+                  <FiFilePlus className="text-2xl text-amber-600" />
+                </div>
+              </div>
+              <div className="mt-4 flex items-center text-sm text-gray-500">
+                <span className="text-amber-500">↗</span>
+                <span className="ml-1">Currently running</span>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="bg-white rounded-2xl p-6 shadow-lg border border-red-100 hover:shadow-xl transition-all duration-200"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">Pending Appeals</p>
+                  <p className="text-3xl font-bold text-red-600">{pendingAppeals}</p>
+                </div>
+                <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                  <FiEye className="text-2xl text-red-600" />
+                </div>
+              </div>
+              <div className="mt-4 flex items-center text-sm text-gray-500">
+                <span className="text-red-500">⚠</span>
+                <span className="ml-1">Requires attention</span>
+              </div>
+            </motion.div>
+          </div>
+        </motion.div>
+
+        {/* Classes Section */}
+        <div className="space-y-8">
+          {/* Section Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Your Classes</h2>
+              <p className="text-gray-600">Manage your classes and track student progress</p>
+            </div>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowAddClassForm(!showAddClassForm)}
+              className="mt-4 sm:mt-0 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-6 py-3 rounded-xl font-semibold flex items-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200"
+            >
+              <FiFilePlus className="text-lg" />
+              {showAddClassForm ? "Close Form" : "Create New Class"}
+            </motion.button>
+          </div>
+
+          <AnimatePresence>
+            {showAddClassForm && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <CreateClass
+                  teacherEmail={teacher.email}
+                  onClassCreated={fetchTeacherDetails}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Classes Grid */}
+          <LayoutGroup>
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {teacher.classes?.map((cls, index) => {
+                if (!cls || !cls._id) return null;
+
+                const enrolledStudents = cls.students?.length || 0;
+                const capacity = cls.capacity || 0;
+                const enrollmentPercentage = capacity > 0 ? (enrolledStudents / capacity) * 100 : 0;
+
+                return (
+                  <motion.div
+                    key={cls._id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    layout
+                    className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 group cursor-pointer"
+                    onClick={() => handleClassClick(cls)}
+                  >
+                    {/* Class Header */}
+                    <div className="p-6 border-b border-gray-100">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
+                            <FiBookOpen className="text-xl text-white" />
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-bold text-gray-900 group-hover:text-emerald-600 transition-colors">
+                              {cls.className || "Unnamed Class"}
+                            </h3>
+                            <p className="text-sm text-gray-500">Class ID: {cls.classId || "N/A"}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                            {enrolledStudents}/{capacity} students
+                          </span>
+                          <FiChevronDown
+                            className={`text-gray-400 transform transition-transform ${
+                              selectedClass?._id === cls._id ? "rotate-180" : ""
+                            }`}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="mb-4">
+                        <div className="flex justify-between text-sm text-gray-600 mb-1">
+                          <span>Enrollment</span>
+                          <span>{Math.round(enrollmentPercentage)}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-2 rounded-full transition-all duration-500"
+                            style={{ width: `${enrollmentPercentage}%` }}
+                          ></div>
+                        </div>
+                      </div>
+
+                      {/* Quick Stats */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="text-center">
+                          <p className="text-2xl font-bold text-emerald-600">{enrolledStudents}</p>
+                          <p className="text-xs text-gray-500">Students</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-2xl font-bold text-blue-600">{assessments.length}</p>
+                          <p className="text-xs text-gray-500">Assessments</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Class Actions */}
+                    <div className="p-4 bg-gray-50">
+                      <div className="flex space-x-2">
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowEnrollForm(true);
+                          }}
+                          className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                        >
+                          <FiUsers className="text-sm" />
+                          Manage Students
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowAddAssessmentForm(!showAddAssessmentForm);
+                          }}
+                          className="flex-1 bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-600 transition-colors flex items-center justify-center gap-2"
+                        >
+                          <FiFilePlus className="text-sm" />
+                          Add Assessment
+                        </motion.button>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </LayoutGroup>
+
+          {/* Empty State */}
+          {teacher.classes?.length === 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center py-12"
+            >
+              <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <FiBookOpen className="text-3xl text-gray-400" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">No classes yet</h3>
+              <p className="text-gray-600 mb-6">Create your first class to get started with managing students and assessments</p>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowAddClassForm(true)}
+                className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-6 py-3 rounded-xl font-semibold flex items-center gap-2 mx-auto shadow-lg hover:shadow-xl transition-all duration-200"
+              >
+                <FiFilePlus className="text-lg" />
+                Create Your First Class
+              </motion.button>
+            </motion.div>
+          )}
+        </div>
+
+        {/* Class Details Section */}
+        <AnimatePresence>
+          {selectedClass && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="mt-8 bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden"
+            >
+              <div className="p-6 border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-2xl font-bold text-gray-900">{selectedClass.className}</h3>
+                    <p className="text-gray-600">Class Details & Management</p>
+                  </div>
+                  <button
+                    onClick={() => setSelectedClass(null)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <FiX className="text-xl" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Class Details Content */}
+              <div className="p-6">
+                {/* Class Statistics */}
+                <div className="grid md:grid-cols-2 gap-6 mb-8">
+                  <div className="bg-emerald-50 p-4 rounded-lg">
+                    <h5 className="text-sm font-semibold text-emerald-600 mb-2">
+                      Class Statistics
+                    </h5>
+                    <div className="flex gap-4">
+                      <StatBox
+                        icon={<FiUsers />}
+                        label="Capacity"
+                        value={selectedClass.capacity || 0}
+                      />
+                      <StatBox
+                        icon={<FiUsers />}
+                        label="Enrolled"
+                        value={selectedClass.students?.length || 0}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-col gap-3">
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setShowEnrollForm(true)}
+                      className="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-lg flex items-center gap-2"
+                    >
+                      <FiUsers />
+                      Manage Students
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() =>
+                        setShowAddAssessmentForm(
+                          !showAddAssessmentForm
+                        )
+                      }
+                      className="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-lg flex items-center gap-2"
+                    >
+                      <FiFilePlus />
+                      {showAddAssessmentForm
+                        ? "Close Form"
+                        : "New Assessment"}
+                    </motion.button>
+                  </div>
+                </div>
+
+                {/* Add Assessment Form */}
+                <AnimatePresence>
+                  {showAddAssessmentForm && (
+                    <AddAssessmentForm
+                      classId={selectedClass._id}
+                      onAssessmentAdded={(newAssessment) =>
+                        setAssessments([
+                          ...assessments,
+                          newAssessment,
+                        ])
+                      }
+                    />
+                  )}
+                </AnimatePresence>
+
+                {/* Assessments List */}
+                <h3 className="text-lg font-semibold text-emerald-800 mb-4">
+                  Course Assessments
+                </h3>
+                {assessments.length === 0 ? (
+                  <div className="text-center py-8 text-emerald-600">
+                    No assessments created yet
+                  </div>
+                ) : (
+                  <motion.div className="grid gap-4">
+                    {assessments.map((folder) => {
+                      if (!folder || !folder._id) return null;
+
+                      return (
+                        <motion.div
+                          key={folder._id}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="bg-white border border-emerald-100 rounded-lg p-4 shadow-sm"
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h4 className="font-semibold text-emerald-800">
+                                {folder.name || "Unnamed Assessment"}
+                              </h4>
+                              <p className="text-sm text-emerald-600 mt-1">
+                                {folder.description || "No description"}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => handleDeleteAssessment(folder._id)}
+                              className="text-red-500 hover:text-red-600 p-2 rounded-full hover:bg-red-50"
+                            >
+                              <FiTrash2 />
+                            </button>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 text-sm">
+                            <DetailItem
+                              label="Due Date"
+                              value={
+                                folder.dueDate
+                                  ? new Date(folder.dueDate).toLocaleDateString()
+                                  : "Not set"
+                              }
+                            />
+                            <DetailItem
+                              label="Created"
+                              value={
+                                folder.createdAt
+                                  ? new Date(folder.createdAt).toLocaleDateString()
+                                  : "Unknown"
+                              }
+                            />
+                            <DetailItem
+                              label="Question File"
+                              value={
+                                <a
+                                  href={getCloudinaryUrl(folder.questionFile)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-emerald-600 hover:underline flex items-center gap-2"
+                                >
+                                  <FiDownload /> Download
+                                </a>
+                              }
+                            />
+                            <DetailItem
+                              label="Key File"
+                              value={
+                                <a
+                                  href={getCloudinaryUrl(folder.keyFile)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-emerald-600 hover:underline flex items-center gap-2"
+                                >
+                                  <FiDownload /> Download
+                                </a>
+                              }
+                            />
+                          </div>
+                          
+                          <div className="mt-6">
+                            <h5 className="text-sm font-semibold text-emerald-800 mb-2">
+                              Submissions
+                            </h5>
+                            {!folder.submissions || folder.submissions.length === 0 ? (
+                              <p className="text-sm text-emerald-600">
+                                No submissions yet
+                              </p>
+                            ) : (
+                              <div className="space-y-2">
+                                {folder.submissions.map((submission) => {
+                                  if (!submission || !submission._id) return null;
+
+                                  return (
+                                    <div
+                                      key={submission._id}
+                                      className="flex flex-col md:flex-row justify-between items-center bg-emerald-50 p-2 rounded-lg"
+                                    >
+                                      <span className="text-sm text-emerald-800">
+                                        {submission.student?.email || "Unknown student"}
+                                      </span>
+                                      <a
+                                        href={submission.submissionFile}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-emerald-600 hover:underline flex items-center gap-2 p-2 rounded-lg bg-emerald-100"
+                                      >
+                                        <FiDownload /> Download
+                                      </a>
+                                    </div>
+                                  );
+                                })}
+                                <button
+                                  onClick={() => handleGenerateExcel(folder._id)}
+                                  className="mt-2 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                                  disabled={loadingExcel}
+                                >
+                                  {loadingExcel ? "Generating Excel..." : "Generate Excel Sheet"}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </motion.div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+                                      {/* Grading Reports Section */}
+                                      <div className="mt-4 flex-1">
+                                        <h5 className="text-sm font-semibold text-emerald-800 mb-2">
+                                          Grading Reports
+                                        </h5>
+                                        {!folder.submissions ||
+                                        folder.submissions.length === 0 ? (
+                                          <p className="text-sm text-emerald-600">
+                                            No submissions yet
+                                          </p>
+                                        ) : (
+                                          <ul className="space-y-2">
+                                            {folder.submissions.map(
+                                              (submission) => {
+                                                if (
+                                                  !submission ||
+                                                  !submission._id
+                                                )
+                                                  return null;
+
+                                                return (
+                                                  <li
+                                                    key={submission._id}
+                                                    className="flex justify-between items-center bg-emerald-50 p-2 rounded-lg"
+                                                  >
+                                                    {submission.gradingReport ? (
+                                                      <a
+                                                        href={
+                                                          submission.gradingReport
+                                                        }
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-emerald-600 hover:underline flex items-center p-2 rounded-lg bg-emerald-50"
+                                                      >
+                                                        <FiDownload /> View
+                                                        Report
+                                                      </a>
+                                                    ) : (
+                                                      <span className="text-sm text-gray-500">
+                                                        Report not available
+                                                      </span>
+                                                    )}
+                                                  </li>
+                                                );
+                                              }
+                                            )}
+                                          </ul>
+                                        )}
+                                      </div>
+
+                                      {/* Appeals Section */}
+                                      <div className="mt-4 flex-1">
+                                        <h5 className="text-sm font-semibold text-emerald-800 mb-2">
+                                          Appeals
+                                        </h5>
+                                        {!folder.submissions ||
+                                        folder.submissions.length === 0 ? (
+                                          <p className="text-sm text-emerald-600">
+                                            No appeals yet
+                                          </p>
+                                        ) : (
+                                          <ul className="space-y-2">
+                                            {folder.submissions.map(
+                                              (submission) => {
+                                                if (
+                                                  !submission ||
+                                                  !submission._id
+                                                )
+                                                  return null;
+
+                                                const appeal = appeals.find(
+                                                  (a) =>
+                                                    a.assessment &&
+                                                    a.assessment._id ===
+                                                      folder._id &&
+                                                    a.studentEmail ===
+                                                      (submission.student
+                                                        ?.email || "")
+                                                );
+
+                                                return (
+                                                  <li
+                                                    key={submission._id}
+                                                    className="flex justify-between items-center bg-emerald-50 p-2 rounded-lg"
+                                                  >
+                                                    {appeal ? (
+                                                      <button
+                                                        onClick={() =>
+                                                          handleViewAppeal(
+                                                            appeal
+                                                          )
+                                                        }
+                                                        className="text-emerald-600 hover:underline flex items-center p-2 rounded-lg bg-emerald-50"
+                                                      >
+                                                        <FiEye /> View Appeal
+                                                      </button>
+                                                    ) : (
+                                                      <span className="text-sm text-gray-500">
+                                                        No appeal for this
+                                                        submission
+                                                      </span>
+                                                    )}
+                                                  </li>
+                                                );
+                                              }
+                                            )}
+                                          </ul>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* View Appeal Modal */}
+                                    <AnimatePresence>
+                                      {showAppealModal && selectedAppeal && (
+                                        <motion.div
+                                          initial={{ opacity: 0 }}
+                                          animate={{ opacity: 1 }}
+                                          exit={{ opacity: 0 }}
+                                          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+                                        >
+                                          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+                                            <h3 className="text-lg font-semibold text-emerald-800 mb-4">
+                                              Appeal Details
+                                            </h3>
+                                            <p className="text-sm text-emerald-800">
+                                              <strong>Student Email:</strong>{" "}
+                                              {selectedAppeal.studentEmail ||
+                                                "Unknown"}
+                                            </p>
+                                            <p className="text-sm text-emerald-800">
+                                              <strong>Description:</strong>{" "}
+                                              {selectedAppeal.description ||
+                                                "No description"}
+                                            </p>
+                                            <p className="text-sm text-emerald-800">
+                                              <strong>Assessment:</strong>{" "}
+                                              {selectedAppeal.assessment
+                                                ?.name || "Unknown assessment"}
+                                            </p>
+                                            <p className="text-sm text-emerald-800">
+                                              <strong>Created At:</strong>{" "}
+                                              {selectedAppeal.createdAt
+                                                ? new Date(
+                                                    selectedAppeal.createdAt
+                                                  ).toLocaleString()
+                                                : "Unknown"}
+                                            </p>
+                                            <div className="flex justify-end gap-4 mt-4">
+                                              <button
+                                                onClick={() =>
+                                                  setShowAppealModal(false)
+                                                }
+                                                className="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400"
+                                              >
+                                                Close
+                                              </button>
+                                              <button
+                                                onClick={() =>
+                                                  handleRecheck(selectedAppeal)
+                                                }
+                                                className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                                                disabled={loadingRecheck} // Disable button while loading
+                                              >
+                                                {loadingRecheck
+                                                  ? "Rechecking..."
+                                                  : "Recheck"}
+                                              </button>
+                                            </div>
+                                          </div>
+                                        </motion.div>
+                                      )}
+                                    </AnimatePresence>
+                                  </motion.div>
+                                );
+                              })}
+                            </motion.div>
+                          )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                );
+              })}
+            </motion.div>
+          </LayoutGroup>
+        </div>
+
+        {/* Class Details Section */}
+        <AnimatePresence>
+          {selectedClass && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="mt-8 bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden"
+            >
+              <div className="p-6 border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-2xl font-bold text-gray-900">{selectedClass.className}</h3>
+                    <p className="text-gray-600">Class Details & Management</p>
+                  </div>
+                  <button
+                    onClick={() => setSelectedClass(null)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <FiX className="text-xl" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Class Details Content */}
+              <div className="p-6">
+                {/* Class Statistics */}
+                <div className="grid md:grid-cols-2 gap-6 mb-8">
+                  <div className="bg-emerald-50 p-4 rounded-lg">
+                    <h5 className="text-sm font-semibold text-emerald-600 mb-2">
+                      Class Statistics
+                    </h5>
+                    <div className="flex gap-4">
+                      <StatBox
+                        icon={<FiUsers />}
+                        label="Capacity"
+                        value={selectedClass.capacity || 0}
+                      />
+                      <StatBox
+                        icon={<FiUsers />}
+                        label="Enrolled"
+                        value={selectedClass.students?.length || 0}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-col gap-3">
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setShowEnrollForm(true)}
+                      className="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-lg flex items-center gap-2"
+                    >
+                      <FiUsers />
+                      Manage Students
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() =>
+                        setShowAddAssessmentForm(
+                          !showAddAssessmentForm
+                        )
+                      }
+                      className="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-lg flex items-center gap-2"
+                    >
+                      <FiFilePlus />
+                      {showAddAssessmentForm
+                        ? "Close Form"
+                        : "New Assessment"}
+                    </motion.button>
+                  </div>
+                </div>
+
+                {/* Add Assessment Form */}
+                <AnimatePresence>
+                  {showAddAssessmentForm && (
+                    <AddAssessmentForm
+                      classId={selectedClass._id}
+                      onAssessmentAdded={(newAssessment) =>
+                        setAssessments([
+                          ...assessments,
+                          newAssessment,
+                        ])
+                      }
+                    />
+                  )}
+                </AnimatePresence>
+
+                {/* Assessments List */}
+                <h3 className="text-lg font-semibold text-emerald-800 mb-4">
+                  Course Assessments
+                </h3>
+                {assessments.length === 0 ? (
+                  <div className="text-center py-8 text-emerald-600">
+                    No assessments created yet
+                  </div>
+                ) : (
+                  <motion.div className="grid gap-4">
+                    {assessments.map((folder) => {
+                      if (!folder || !folder._id) return null;
+
+                      return (
+                        <motion.div
+                          key={folder._id}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="bg-white border border-emerald-100 rounded-lg p-4 shadow-sm"
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h4 className="font-semibold text-emerald-800">
+                                {folder.name || "Unnamed Assessment"}
+                              </h4>
+                              <p className="text-sm text-emerald-600 mt-1">
+                                {folder.description || "No description"}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => handleDeleteAssessment(folder._id)}
+                              className="text-red-500 hover:text-red-600 p-2 rounded-full hover:bg-red-50"
+                            >
+                              <FiTrash2 />
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 text-sm">
+                            <DetailItem
+                              label="Due Date"
+                              value={
+                                folder.dueDate
+                                  ? new Date(
+                                      folder.dueDate
+                                    ).toLocaleDateString()
+                                  : "Not set"
+                              }
+                            />
+                            <DetailItem
+                              label="Created"
+                              value={
+                                folder.createdAt
+                                  ? new Date(
+                                      folder.createdAt
+                                    ).toLocaleDateString()
+                                  : "Unknown"
+                              }
+                            />
+                            <DetailItem
+                              label="Question File"
+                              value={
+                                <a
+                                  href={getCloudinaryUrl(
+                                    folder.questionFile
+                                  )}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-emerald-600 hover:underline flex items-center gap-2"
+                                >
+                                  <FiDownload /> Download
+                                </a>
+                              }
+                            />
+                            <DetailItem
+                              label="Key File"
+                              value={
+                                <a
+                                  href={getCloudinaryUrl(
+                                    folder.keyFile
+                                  )}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-emerald-600 hover:underline flex items-center gap-2"
+                                >
+                                  <FiDownload /> Download
+                                </a>
+                              }
+                            />
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </motion.div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Modals */}
+        <AnimatePresence>
+          {showEnrollForm && selectedClass && (
+            <EnrollStudent
+              classId={selectedClass._id}
+              onClose={() => setShowEnrollForm(false)}
+            />
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+};
+
+// Helper Components
+const StatBox = ({ icon, label, value }) => (
+  <div className="bg-white p-3 rounded-lg flex items-center gap-3">
+    <div className="bg-emerald-100 p-2 rounded-full text-emerald-600">
+      {icon}
+    </div>
+    <div>
+      <div className="text-xs text-emerald-600">{label}</div>
+      <div className="text-lg font-semibold text-emerald-800">{value}</div>
+    </div>
+  </div>
+);
+
+const DetailItem = ({ label, value }) => (
+  <div className="bg-emerald-50 p-2 rounded">
+    <span className="text-xs text-emerald-600">{label}:</span>
+    <span className="block font-medium text-emerald-800">{value}</span>
+  </div>
+);
+
+export default TeacherDashboard;
