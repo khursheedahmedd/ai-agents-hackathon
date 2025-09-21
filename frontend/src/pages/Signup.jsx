@@ -71,7 +71,7 @@ export default function Signup() {
             </div>
             <div className="text-blue-700 font-mono text-xs">
               Gmail: khursheed65777@gmail.com <br></br> Password:
-              &lt;HjKH416&gt;
+              &lt;HjKh416&gt;
             </div>
           </div>
         </motion.div>
