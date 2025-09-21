@@ -4,14 +4,20 @@ import { useSignIn } from "@clerk/clerk-react";
 import LoginForm from "../components/auth/LoginForm";
 import { useAuth } from "@clerk/clerk-react";
 import { Link } from "react-router-dom";
+import { useState } from "react";
 
 export default function Login() {
   const { isLoaded } = useSignIn();
   const { signOut } = useAuth();
+  const [demoCredentials, setDemoCredentials] = useState(null);
 
   const handleForceSignOut = async () => {
     await signOut();
     window.location.reload();
+  };
+
+  const handleDemoLogin = (email, password) => {
+    setDemoCredentials({ email, password });
   };
 
   if (!isLoaded) return null;
@@ -33,13 +39,52 @@ export default function Login() {
             Exam Portal Login
           </h2>
         </motion.div>
-        <LoginForm />
-        {/* <button 
-        onClick={handleForceSignOut}
-        className="mt-4 text-red-600 hover:text-red-800"
-      >
-        Force Sign Out All Sessions
-      </button> */}
+        <LoginForm demoCredentials={demoCredentials} />
+
+        {/* Demo Credentials Section */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg"
+        >
+          <h3 className="text-sm font-medium text-blue-900 mb-3">
+            Demo Credentials for Testing:
+          </h3>
+          <div className="space-y-2 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-blue-800 font-medium">Teacher:</span>
+              {/* <button
+                onClick={() =>
+                  handleDemoLogin("khursheedig416@gmail.com", "<HjKh416>")
+                }
+                className="text-blue-600 hover:text-blue-800 underline"
+              >
+                Use Demo
+              </button> */}
+            </div>
+            <div className="text-blue-700 font-mono text-xs">
+              Gmail: khursheedig416@gmail.com <br></br> Password:
+              &lt;HjKh416&gt;
+            </div>
+
+            <div className="flex items-center justify-between mt-3">
+              <span className="text-blue-800 font-medium">Student:</span>
+              {/* <button
+                onClick={() =>
+                  handleDemoLogin("khursheed65777@gmail.com", "<HjKH416>")
+                }
+                className="text-blue-600 hover:text-blue-800 underline"
+              >
+                Use Demo
+              </button> */}
+            </div>
+            <div className="text-blue-700 font-mono text-xs">
+              Gmail: khursheed65777@gmail.com <br></br> Password:
+              &lt;HjKH416&gt;
+            </div>
+          </div>
+        </motion.div>
+
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

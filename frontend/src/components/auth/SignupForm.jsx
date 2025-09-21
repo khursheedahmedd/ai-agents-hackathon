@@ -1,23 +1,33 @@
 // components/Auth/SignupForm.jsx
-import { motion } from 'framer-motion';
-import { useSignUp } from '@clerk/clerk-react';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { motion } from "framer-motion";
+import { useSignUp } from "@clerk/clerk-react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
-export default function SignupForm() {
+export default function SignupForm({ demoCredentials }) {
   const { isLoaded, signUp } = useSignUp();
-  const [email, setEmail] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [password, setPassword] = useState('');
-  const [role, setRole] = useState('');
+  const [email, setEmail] = useState(demoCredentials?.email || "");
+  const [firstName, setFirstName] = useState(demoCredentials?.firstName || "");
+  const [lastName, setLastName] = useState(demoCredentials?.lastName || "");
+  const [password, setPassword] = useState(demoCredentials?.password || "");
+  const [role, setRole] = useState(demoCredentials?.role || "");
   const navigate = useNavigate();
 
+  // Update form fields when demo credentials change
+  useEffect(() => {
+    if (demoCredentials) {
+      setEmail(demoCredentials.email);
+      setFirstName(demoCredentials.firstName || "Demo");
+      setLastName(demoCredentials.lastName || "User");
+      setPassword(demoCredentials.password);
+      setRole(demoCredentials.role);
+    }
+  }, [demoCredentials]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!isLoaded) return;
-  
+
     try {
       await signUp.create({
         email_address: email,
@@ -28,28 +38,26 @@ export default function SignupForm() {
         public_metadata: { role },
 
         // Add required fields if needed
-        username: `${email.split('@')[0]}_${Date.now().toString().slice(-4)}`
+        username: `${email.split("@")[0]}_${Date.now().toString().slice(-4)}`,
       });
-      
-  
+
       // Force complete the sign-up
       await signUp.update({
         unsafeMetadata: {
-          role: role
-        }
+          role: role,
+        },
       });
-  
+
       await signUp.prepareEmailAddressVerification();
-      navigate('/verify-email');
+      navigate("/verify-email");
     } catch (err) {
-      console.error('Signup error:', err);
+      console.error("Signup error:", err);
       // Handle specific Clerk errors
-      if (err.errors?.[0]?.code === 'form_identifier_exists') {
-        alert('Email already registered');
+      if (err.errors?.[0]?.code === "form_identifier_exists") {
+        alert("Email already registered");
       }
     }
   };
-  
 
   return (
     <motion.form
@@ -59,7 +67,9 @@ export default function SignupForm() {
       className="space-y-6"
     >
       <div>
-        <label className="block text-sm font-medium text-gray-700">First Name</label>
+        <label className="block text-sm font-medium text-gray-700">
+          First Name
+        </label>
         <input
           type="name"
           onChange={(e) => setFirstName(e.target.value)}
@@ -67,7 +77,9 @@ export default function SignupForm() {
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700">Last Name</label>
+        <label className="block text-sm font-medium text-gray-700">
+          Last Name
+        </label>
         <input
           type="name"
           onChange={(e) => setLastName(e.target.value)}

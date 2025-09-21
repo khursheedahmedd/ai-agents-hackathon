@@ -1,20 +1,28 @@
 import { motion } from "framer-motion";
 import { useSignIn } from "@clerk/clerk-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useClerk, useUser, useAuth } from "@clerk/clerk-react";
 import axios from "axios";
 
-export default function LoginForm() {
+export default function LoginForm({ demoCredentials }) {
   const { signIn } = useSignIn();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState(demoCredentials?.email || "");
+  const [password, setPassword] = useState(demoCredentials?.password || "");
   const [loading, setLoading] = useState(false); // Loading state
   const navigate = useNavigate();
   const { setActive } = useClerk();
   const { user } = useUser();
   const { isSignedIn } = useUser();
   const { getToken } = useAuth();
+
+  // Update form fields when demo credentials change
+  useEffect(() => {
+    if (demoCredentials) {
+      setEmail(demoCredentials.email);
+      setPassword(demoCredentials.password);
+    }
+  }, [demoCredentials]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
