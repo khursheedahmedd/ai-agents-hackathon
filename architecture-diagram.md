@@ -167,14 +167,14 @@ graph TB
     FASTAPI --> NODE_INT
     NODE_INT --> NODE
 
-    %% Styling
-    classDef userClass fill:#e1f5fe,stroke:#01579b,stroke-width:2px
-    classDef frontendClass fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
-    classDef backendClass fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
-    classDef coralClass fill:#fff3e0,stroke:#e65100,stroke-width:2px
-    classDef aiClass fill:#fce4ec,stroke:#880e4f,stroke-width:2px
-    classDef dbClass fill:#e0f2f1,stroke:#004d40,stroke-width:2px
-    classDef externalClass fill:#f1f8e9,stroke:#33691e,stroke-width:2px
+    %% Styling with better text visibility
+    classDef userClass fill:#e3f2fd,stroke:#0277bd,stroke-width:3px,color:#000000
+    classDef frontendClass fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px,color:#000000
+    classDef backendClass fill:#e8f5e8,stroke:#388e3c,stroke-width:3px,color:#000000
+    classDef coralClass fill:#fff8e1,stroke:#f57c00,stroke-width:3px,color:#000000
+    classDef aiClass fill:#fce4ec,stroke:#c2185b,stroke-width:3px,color:#000000
+    classDef dbClass fill:#e0f2f1,stroke:#00695c,stroke-width:3px,color:#000000
+    classDef externalClass fill:#f1f8e9,stroke:#558b2f,stroke-width:3px,color:#000000
 
     class T,S,A userClass
     class FE,HOME,LOGIN,TDASH,SDASH,UPLOAD,ASSESS,TAILWIND,FRAMER,CHART,CLERK_AUTH,FILE_PROC frontendClass
