@@ -6,6 +6,9 @@ A comprehensive AI-powered educational technology platform that automates gradin
 
 Smart Grade AI is an advanced educational technology platform that combines multiple specialized AI agents working together through the **Coral Protocol** to provide intelligent, automated grading and assessment capabilities. The system can process various document formats, extract text using OCR, grade student answers against rubrics, and provide detailed, personalized feedback.
 
+Architecture: https://github.com/khursheedahmedd/ai-agents-hackathon/blob/main/architecture-diagram.md
+
+
 ## 🚀 Technology Stack
 
 ### Frontend
